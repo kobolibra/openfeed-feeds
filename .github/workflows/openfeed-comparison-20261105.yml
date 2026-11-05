@@ -1,0 +1,45 @@
+name: OpenFeed one-off cross-environment comparison
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      TARGETS_B64: "W3siaWQiOiAiMzU5YWE3OThkZjlmNmEyMTQ4YzI4ZTY1Y2JhMyIsICJ1cmwiOiAiaHR0cHM6Ly93d3cubGllcGluLmNvbS9jb21wYW55LWpvYnMvMTIxNTU0NzcvIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogImI2ZDE3NmU1NTBjOTE0MDhhNmZkMGU1YzcyNjkiLCAidXJsIjogImh0dHBzOi8vd3d3LmxpZXBpbi5jb20vY29tcGFueS1qb2JzLzgyMjQzNDMvIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogIjA3ZGU5NTZlNjBjZTYxMWFiZTI4MDFhYTY4MTkiLCAidXJsIjogImh0dHBzOi8vd3d3Lndvb2RtYWMuY29tL2FwaS92MS9zZWFyY2gvbGF0ZXN0LXRoaW5raW5nL2FiMzQwZjVkLTRiMjUtNGFhNS1hZmRlLTcyZWE2NGNiODU4YiIsICJtZXRob2QiOiAiUE9TVCIsICJkYXRhIjoge30sICJqc29uIjogeyJxIjogIkNoaW5hIiwgImZyb20iOiAxfX0sIHsiaWQiOiAiOGVjNGM5ZGEyMGE2YWM0NjVjZjUxMGNhMDNlZSIsICJ1cmwiOiAiaHR0cHM6Ly9kYXRhLndvcmxkYmFuay5vcmcvY291bnRyeS9jaGluYT92aWV3PWNoYXJ0IiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogIjliYTA5NTU4ZmIzYjdmZGYzNDc2OGRmZWVjYmIiLCAidXJsIjogImh0dHBzOi8vZmVlZGVyLmNvL2Rpc2NvdmVyLzg1N2Y5ZGNjMTAvb2FrdHJlZWNhcGl0YWwtY29tLWhvbWUiLCAibWV0aG9kIjogIkdFVCIsICJkYXRhIjoge30sICJqc29uIjogbnVsbH0sIHsiaWQiOiAiZmMyZjgzYzNmZThkNzg1NWVlNzdiYzViMWFhZSIsICJ1cmwiOiAiaHR0cHM6Ly93d3cuY2FwaXRhbGVjb25vbWljcy5jb20va2V5LWlzc3VlcyIsICJtZXRob2QiOiAiR0VUIiwgImRhdGEiOiB7fSwgImpzb24iOiBudWxsfSwgeyJpZCI6ICJlMzY3NzQzYzg5MmU0NjJhMDg0M2Q2MTI1ZTkxIiwgInVybCI6ICJodHRwczovL3d3dy5jaGluYWxhd2luc2lnaHQuY29tL2ZlZWQvIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogImRiNDQ0MjNkOWM5YzExYTUyOWJmNzdjY2E2ZmIiLCAidXJsIjogImh0dHBzOi8vd3d3LmNoaW5hbGF3aW5zaWdodC5jb20vP3M9UUQmZmVlZD1yc3MyIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogImM2OTIzYWQ5ZmQwODc2NDgyMWJhYjY1MTk5ZjQiLCAidXJsIjogImh0dHBzOi8vd3d3Lmd1Z2dlbmhlaW1pbnZlc3RtZW50cy5jb20vd3AtYWRtaW4vYWRtaW4tYWpheC5waHAiLCAibWV0aG9kIjogIlBPU1QiLCAiZGF0YSI6IHsiYWN0aW9uIjogImxvYWRfbGlzdGluZ19yZXN1bHRzIiwgInBhZ2UiOiAiMSIsICJwZXJwYWdlIjogIjEyIiwgInBvc3RfdHlwZXMiOiAicG9zdCIsICJ0ZW1wbGF0ZSI6ICJjb21wb25lbnRzL2NhcmRzLW5ld3MvY2FyZC1uZXdzIiwgInBvc3RfX25vdF9pbiI6ICIzMDIsMzA5LDMxMiIsICJwYWdlciI6ICJsb2FkX21vcmUiLCAiZmlsdGVycyI6ICIifSwgImpzb24iOiBudWxsfSwgeyJpZCI6ICI5NWQxYzQ3ZTYzYjQxZjgxNGYxN2QzNDQ2NDZhIiwgInVybCI6ICJodHRwczovL3d3dy5ldXJhc2lhZ3JvdXAubmV0L2dsb2JhbC1zZWFyY2gtcmVzdWx0cz9rZXl3b3JkPUNoaW5hIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogImU5ZGFkYmM2MTAxYWJjM2I0N2E1YmNhOWNhYTgiLCAidXJsIjogImh0dHBzOi8vd3d3LmxpZXBpbi5jb20vY29tcGFueS1qb2JzLzc4NTgyODkvIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogIjlhYzBiZDk5OTE2Yjc5NGMyMzgxYjBkYzQ1ODMiLCAidXJsIjogImh0dHBzOi8vd3d3LmNhcGl0YWxlY29ub21pY3MuY29tL2NoaW5hLWVjb25vbWljcyIsICJtZXRob2QiOiAiR0VUIiwgImRhdGEiOiB7fSwgImpzb24iOiBudWxsfSwgeyJpZCI6ICI2M2YyMTkyODAyNjY3M2YxYjU1NWI2MjViODgyIiwgInVybCI6ICJodHRwczovL3d3dy5jYXBpdGFsZWNvbm9taWNzLmNvbS9zZWFyY2g/cz0mZiU1QjAlNUQ9cHJvZHVjdCUzQTE4MDAiLCAibWV0aG9kIjogIkdFVCIsICJkYXRhIjoge30sICJqc29uIjogbnVsbH0sIHsiaWQiOiAiYzNkN2NmOTFhYjJiOWIyOThkMWZjNTdhMzllNyIsICJ1cmwiOiAiaHR0cHM6Ly93d3cuY2FwaXRhbGVjb25vbWljcy5jb20vdG9waWMvbG9uZy1ydW4tdGhlbWVzLWFuZC1pc3N1ZXMiLCAibWV0aG9kIjogIkdFVCIsICJkYXRhIjoge30sICJqc29uIjogbnVsbH0sIHsiaWQiOiAiMTU2YjAyMGM2ZTQ3NTJlZDgwMDRiNGI4ZTM5ZCIsICJ1cmwiOiAiaHR0cHM6Ly93d3cuY2FwaXRhbGVjb25vbWljcy5jb20vY2hpZWYtZWNvbm9taXN0cy1ub3RlIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogImE3NjI3ZDVjOGNjN2UzNTZkYjNjZjhkM2QxMWYiLCAidXJsIjogImh0dHBzOi8vd3d3LmF0bGFudGljY291bmNpbC5vcmcvaXNzdWUvZWNvbm9teS1idXNpbmVzcy9mZWVkLyIsICJtZXRob2QiOiAiR0VUIiwgImRhdGEiOiB7fSwgImpzb24iOiBudWxsfSwgeyJpZCI6ICJmZDRhZDFmMTJkNGMwNjhhMDcxYzQxNGI3Y2JmIiwgInVybCI6ICJodHRwczovL3d3dy5hcXIuY29tL0luc2lnaHRzL1Jlc2VhcmNoIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogImM1NTZjZDExN2NhNTAxMWU0NWI4OWZkZjE3OWUiLCAidXJsIjogImh0dHBzOi8vd3d3LmFxci5jb20vSW5zaWdodHMvUGVyc3BlY3RpdmVzIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9LCB7ImlkIjogIjIyNzFhOThmZTI4ZGJlNmVmZjEwZTkwN2JiODIiLCAidXJsIjogImh0dHBzOi8vd3d3LmFxci5jb20vSW5zaWdodHMvUmVzZWFyY2gvQWx0ZXJuYXRpdmUtVGhpbmtpbmciLCAibWV0aG9kIjogIkdFVCIsICJkYXRhIjoge30sICJqc29uIjogbnVsbH0sIHsiaWQiOiAiMDUwODg0ZTE4ODFmZGQ3NzdmMTJjYzljYjE0ZSIsICJ1cmwiOiAiaHR0cHM6Ly93d3cuYnJvb2tpbmdzLmVkdS9yZWdpb25zL2FzaWEtdGhlLXBhY2lmaWMvY2hpbmEvIiwgIm1ldGhvZCI6ICJHRVQiLCAiZGF0YSI6IHt9LCAianNvbiI6IG51bGx9XQ=="
+    steps:
+      - name: Compare public source requests with bounded concurrency
+        shell: python
+        run: |
+          import os,json,base64,subprocess,concurrent.futures,time,threading
+          from pathlib import Path
+          from urllib.parse import urlsplit,urlencode
+          rows=json.loads(base64.b64decode(os.environ['TARGETS_B64']));out=Path('evidence');out.mkdir(exist_ok=True)
+          locks={urlsplit(x['url']).hostname:threading.Lock() for x in rows};last={}
+          def one(row):
+           host=urlsplit(row['url']).hostname
+           with locks[host]:
+            time.sleep(max(0,8-(time.monotonic()-last.get(host,-100))))
+            last[host]=time.monotonic();prefix=out/row['id']
+            cmd=['curl','--proto','=https','--proto-redir','=https','--location','--connect-timeout','10','--max-time','30','--max-filesize','5000000','-sS','--dump-header',str(prefix)+'.headers','--output',str(prefix)+'.body','--write-out','%{json}','--user-agent','OpenFeedStudio/0.4 (+private self-hosted RSS creator)','--header','Accept: text/html,application/rss+xml,application/atom+xml,application/xml,text/xml,application/json,application/feed+json;q=0.8,*/*;q=0.3']
+            if os.environ.get('PROBE_PROXY'):cmd+=['--proxy',os.environ['PROBE_PROXY']]
+            if row['method']=='POST':
+             cmd+=['--request','POST']
+             if row['json'] is not None:cmd+=['--header','Content-Type: application/json','--data-raw',json.dumps(row['json'])]
+             else:cmd+=['--data-raw',urlencode(row['data'])]
+            p=subprocess.run(cmd+[row['url']],capture_output=True,text=True)
+            try:metrics=json.loads(p.stdout)
+            except ValueError:metrics={'raw':p.stdout}
+            result={'id':row['id'],'exit':p.returncode,'metrics':metrics,'error':p.stderr[:800]};Path(str(prefix)+'.json').write_text(json.dumps(result))
+            return result
+          with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(one,rows))
+          (out/'results.json').write_text(json.dumps(results,indent=2))
+          for x in results:print(x['id'],x['metrics'].get('http_code'),x['exit'])
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-environment-evidence
+          path: evidence/
+          retention-days: 3
