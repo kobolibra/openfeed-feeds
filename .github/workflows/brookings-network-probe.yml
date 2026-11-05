@@ -1,0 +1,24 @@
+name: Brookings public-page network probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Fetch only the original public China page
+        shell: bash
+        run: |
+          mkdir evidence
+          curl --proto '=https' --proto-redir '=https' --location \
+            --connect-timeout 10 --max-time 30 --max-filesize 5000000 \
+            --dump-header evidence/headers.txt --output evidence/page.html \
+            --write-out 'http=%{http_code} remote=%{remote_ip} tls=%{time_appconnect} first=%{time_starttransfer} total=%{time_total}\n' \
+            'https://www.brookings.edu/regions/asia-the-pacific/china/' > evidence/timing.txt 2> evidence/error.txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: brookings-network-evidence
+          path: evidence/
+          retention-days: 3
