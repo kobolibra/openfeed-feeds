@@ -1,0 +1,48 @@
+name: OpenFeed bounded cloud shadow
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: openfeed-runtime-state-writer
+  cancel-in-progress: false
+jobs:
+  shadow:
+    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: kobolibra/openfeed-runtime
+          ref: b9516dab926a6eb5d174fe59cee6dd202a9f1d48
+          path: runtime
+          ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: kobolibra/openfeed-runtime
+          ref: shadow-state
+          path: runtime/private-state
+          ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run verified finite shadow only
+        working-directory: runtime
+        env:
+          RUN_ID: ${{ github.run_id }}
+          OPENFEED_REQUIRE_SHADOW_DEADLINE: '1'
+        run: |
+          umask 077
+          exec > "$RUNNER_TEMP/openfeed-private.log" 2>&1
+          python - <<'PY'
+          import time,json,datetime
+          from pathlib import Path
+          if time.time() >= 1794053385:raise SystemExit(0)
+          c=json.loads(Path('private-state/runtime-control.json').read_text())
+          assert c['mode']=='shadow' and c['publish_enabled'] is False
+          assert time.time()<datetime.datetime.fromisoformat(c['shadow_until']).timestamp()<=1794053386
+          PY
+          python -m pip install -r requirements-runtime.lock
+          python ops/cloud_tick.py --run-id "$RUN_ID"
