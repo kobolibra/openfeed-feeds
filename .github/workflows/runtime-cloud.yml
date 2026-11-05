@@ -1,8 +1,11 @@
 name: OpenFeed bounded cloud shadow
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '7,17,27,37,47,57 * * * *'
 permissions:
   contents: read
+  actions: write
 concurrency:
   group: openfeed-runtime-state-writer
   cancel-in-progress: false
@@ -12,23 +15,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 14
     steps:
-      - uses: actions/checkout@v4
+      - name: Stop automatically after the approved validation period
+        id: deadline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date +%s)" -ge 1794053385 ]; then
+            curl --fail --silent --show-error -X PUT -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/runtime-cloud.yml/disable"
+            echo "active=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.deadline.outputs.active == 'true'
+        uses: actions/checkout@v4
         with:
           repository: kobolibra/openfeed-runtime
           ref: b9516dab926a6eb5d174fe59cee6dd202a9f1d48
           path: runtime
           ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
           persist-credentials: false
-      - uses: actions/checkout@v4
+      - if: steps.deadline.outputs.active == 'true'
+        uses: actions/checkout@v4
         with:
           repository: kobolibra/openfeed-runtime
           ref: shadow-state
           path: runtime/private-state
           ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
-      - uses: actions/setup-python@v5
+      - if: steps.deadline.outputs.active == 'true'
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Run verified finite shadow only
+        if: steps.deadline.outputs.active == 'true'
         working-directory: runtime
         env:
           RUN_ID: ${{ github.run_id }}
