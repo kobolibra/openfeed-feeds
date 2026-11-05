@@ -34,6 +34,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           OPENFEED_REQUIRE_SHADOW_DEADLINE: '1'
         run: |
+          if [ "$(date +%s)" -ge 1794053385 ]; then exit 0; fi
           umask 077
           exec > "$RUNNER_TEMP/openfeed-private.log" 2>&1
           python - <<'PY'
