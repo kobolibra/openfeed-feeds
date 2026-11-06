@@ -90,7 +90,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: kobolibra/openfeed-runtime
-        ref: b9516dab926a6eb5d174fe59cee6dd202a9f1d48
+        ref: 155153bd5e3c44baec2c8ba30738bf071034e282
         path: runtime
         ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
         persist-credentials: false
@@ -179,6 +179,8 @@ jobs:
       env:
         RUN_ID: ${{ github.run_id }}
         OPENFEED_REQUIRE_SHADOW_DEADLINE: '1'
+        OPENFEED_SHADOW_TARGET_IDS: ${{ inputs.source_ids }}
+        OPENFEED_ALLOW_SHADOW_TARGETS: ${{ github.actor == github.repository_owner && inputs.signature == '' }}
       run: |
         if [ "$(date +%s)" -ge 1794053385 ]; then exit 0; fi
         umask 077
@@ -287,5 +289,9 @@ jobs:
       restart:
         type: boolean
         default: false
+      source_ids:
+        type: string
+        required: false
+        default: ''
   schedule:
   - cron: 8,18,28,38,48,58 * * * *
