@@ -2,6 +2,10 @@ name: OpenFeed private response probe
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        type: choice
+        options: [response, regression]
+        default: response
       source_ids:
         type: string
         default: '4eb10889d95da4ae84cfe4ab1d46'
@@ -15,7 +19,7 @@ jobs:
   probe:
     if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - name: Enforce existing validation deadline
         id: deadline
@@ -32,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: kobolibra/openfeed-runtime
-          ref: eb888261c3ebcc980558b53de169e0422e62208b
+          ref: 9cc98c0d6e90f7349a6da92abad9075b998697a0
           path: runtime
           ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
           persist-credentials: false
@@ -51,13 +55,18 @@ jobs:
         if: steps.deadline.outputs.active == 'true'
         env:
           OPENFEED_MAX_FETCH_BYTES: '8000000'
+          PROBE_MODE: ${{ inputs.mode }}
           PROBE_SOURCES: ${{ inputs.source_ids }}
         run: |
           umask 077
           exec > "$RUNNER_TEMP/private-probe.log" 2>&1
-          python -m pip install -r runtime/requirements-runtime.lock
           probe_status=0
-          python runtime/ops/cloud_probe.py --db state/openfeed.sqlite3 --feed-id "$PROBE_SOURCES" --output "state/diagnostics/$GITHUB_RUN_ID" || probe_status=$?
+          if [ "$PROBE_MODE" = regression ]; then
+            (cd runtime && python -m pip install -r requirements-lock.txt -r requirements-host-egress.txt && python -m playwright install --with-deps chromium && python -m pytest -q) || probe_status=$?
+          else
+            python -m pip install -r runtime/requirements-runtime.lock
+            python runtime/ops/cloud_probe.py --db state/openfeed.sqlite3 --feed-id "$PROBE_SOURCES" --output "state/diagnostics/$GITHUB_RUN_ID" || probe_status=$?
+          fi
           mkdir -p "state/diagnostics/$GITHUB_RUN_ID"
           cp "$RUNNER_TEMP/private-probe.log" "state/diagnostics/$GITHUB_RUN_ID/probe.log"
           cd state
