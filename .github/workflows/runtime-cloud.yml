@@ -90,7 +90,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: kobolibra/openfeed-runtime
-        ref: 155153bd5e3c44baec2c8ba30738bf071034e282
+        ref: 5c7a42e807083cf4993252ca9f9c5365d0989602
         path: runtime
         ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
         persist-credentials: false
