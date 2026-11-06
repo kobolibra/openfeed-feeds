@@ -2,6 +2,10 @@ name: OpenFeed private response probe
 on:
   workflow_dispatch:
     inputs:
+      runner:
+        type: choice
+        options: [ubuntu-latest, macos-latest]
+        default: ubuntu-latest
       mode:
         type: choice
         options: [response, regression]
@@ -18,7 +22,7 @@ concurrency:
 jobs:
   probe:
     if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner == 'macos-latest' && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 15
     steps:
       - name: Enforce existing validation deadline
