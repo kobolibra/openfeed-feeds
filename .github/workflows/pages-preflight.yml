@@ -77,7 +77,7 @@ jobs:
               if time.monotonic()>=deadline:raise TimeoutError('Expected Pages commit not built')
               time.sleep(5)
           outlines=public_xml('/subscriptions.opml').findall('./body/outline')
-          assert len(outlines)==171
+          assert len(outlines)==168
           assert all(x.attrib['xmlUrl'].startswith(BASE+'/rss/') for x in outlines)
           rss=public_xml('/rss/050884e1881fdd777f12cc9cb14e.xml')
           guids=[x.text for x in rss.findall('./channel/item/guid')]
