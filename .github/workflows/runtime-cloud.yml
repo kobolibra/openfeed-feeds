@@ -1,18 +1,20 @@
-name: OpenFeed bounded automatic shadow
+# Production: user explicitly approved long-term free operation; private state and source stay private.
+name: OpenFeed production runtime
 permissions:
-  contents: read
+  contents: write
   actions: write
+  pages: write
 concurrency:
   group: openfeed-runtime-state-writer
   cancel-in-progress: false
   queue: max
 jobs:
-  shadow:
+  runtime:
     if: github.ref == 'refs/heads/main' && (github.actor == github.repository_owner || github.actor == 'github-actions[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 14
     steps:
-    - name: Verify signed owner relay and finite deadline
+    - name: Verify signed owner relay
       id: deadline
       env:
         GH_TOKEN: ${{ github.token }}
@@ -24,17 +26,17 @@ jobs:
       run: |
         python3 - <<'PYRELAY'
         import hashlib,hmac,json,time
-        EXPIRY=1794053385
+        EXPIRY=None
         REPO='kobolibra/openfeed-feeds'
         def signature(key,root,generation,not_before):
          payload=json.dumps([REPO,str(root),int(generation),int(not_before),EXPIRY],separators=(',',':'))
          return hmac.new(key.encode(),payload.encode(),hashlib.sha256).hexdigest()
         def authorize(actor,owner,key,inputs,run_id,now):
-         if now>=EXPIRY:return None
+         if EXPIRY is not None and now>=EXPIRY:return None
          if actor==owner and not inputs.get('signature'):return {'root':str(run_id),'generation':0,'not_before':int(now)}
          if actor not in (owner,'github-actions[bot]'):raise ValueError('Actor not allowed')
          root=str(inputs['root']);generation=int(inputs['generation']);not_before=int(inputs['not_before'])
-         if not root.isdigit() or generation<1 or not 0<not_before<EXPIRY:raise ValueError('Invalid relay bounds')
+         if not root.isdigit() or generation<1 or (not_before<=0 or (EXPIRY is not None and not_before>=EXPIRY)):raise ValueError('Invalid relay bounds')
          if not hmac.compare_digest(signature(key,root,generation,not_before),inputs['signature']):raise ValueError('Invalid relay signature')
          if not_before>now+30:raise ValueError('Relay dispatched before its slot')
          return {'root':root,'generation':generation,'not_before':not_before}
@@ -48,14 +50,14 @@ jobs:
 
         def retry_api(call,now=time.time,sleep=time.sleep):
          for attempt in range(5):
-          if now()>=EXPIRY:return False
+          if EXPIRY is not None and now()>=EXPIRY:return False
           try:call();return True
           except urllib.error.HTTPError as error:
            if error.code not in (408,429,500,502,503,504):raise
            if attempt==4:raise
           except (urllib.error.URLError,TimeoutError):
            if attempt==4:raise
-          sleep(min(5*2**attempt,max(0,EXPIRY-now())))
+          sleep(5*2**attempt if EXPIRY is None else min(5*2**attempt,max(0,EXPIRY-now())))
          return False
 
         def push_confirmed(git,expected,new,sleep=time.sleep):
@@ -105,6 +107,14 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
+    - name: Check out static publication repository
+      if: steps.deadline.outputs.active == 'true'
+      uses: actions/checkout@v4
+      with:
+        repository: kobolibra/openfeed-feeds
+        ref: main
+        path: public
+        token: ${{ github.token }}
     - name: Claim a single private-state generation
       id: claim
       if: steps.deadline.outputs.active == 'true'
@@ -116,17 +126,17 @@ jobs:
       run: |
         python3 - <<'PYRELAY'
         import hashlib,hmac,json,time
-        EXPIRY=1794053385
+        EXPIRY=None
         REPO='kobolibra/openfeed-feeds'
         def signature(key,root,generation,not_before):
          payload=json.dumps([REPO,str(root),int(generation),int(not_before),EXPIRY],separators=(',',':'))
          return hmac.new(key.encode(),payload.encode(),hashlib.sha256).hexdigest()
         def authorize(actor,owner,key,inputs,run_id,now):
-         if now>=EXPIRY:return None
+         if EXPIRY is not None and now>=EXPIRY:return None
          if actor==owner and not inputs.get('signature'):return {'root':str(run_id),'generation':0,'not_before':int(now)}
          if actor not in (owner,'github-actions[bot]'):raise ValueError('Actor not allowed')
          root=str(inputs['root']);generation=int(inputs['generation']);not_before=int(inputs['not_before'])
-         if not root.isdigit() or generation<1 or not 0<not_before<EXPIRY:raise ValueError('Invalid relay bounds')
+         if not root.isdigit() or generation<1 or (not_before<=0 or (EXPIRY is not None and not_before>=EXPIRY)):raise ValueError('Invalid relay bounds')
          if not hmac.compare_digest(signature(key,root,generation,not_before),inputs['signature']):raise ValueError('Invalid relay signature')
          if not_before>now+30:raise ValueError('Relay dispatched before its slot')
          return {'root':root,'generation':generation,'not_before':not_before}
@@ -140,14 +150,14 @@ jobs:
 
         def retry_api(call,now=time.time,sleep=time.sleep):
          for attempt in range(5):
-          if now()>=EXPIRY:return False
+          if EXPIRY is not None and now()>=EXPIRY:return False
           try:call();return True
           except urllib.error.HTTPError as error:
            if error.code not in (408,429,500,502,503,504):raise
            if attempt==4:raise
           except (urllib.error.URLError,TimeoutError):
            if attempt==4:raise
-          sleep(min(5*2**attempt,max(0,EXPIRY-now())))
+          sleep(5*2**attempt if EXPIRY is None else min(5*2**attempt,max(0,EXPIRY-now())))
          return False
 
         def push_confirmed(git,expected,new,sleep=time.sleep):
@@ -173,28 +183,26 @@ jobs:
          expected=git('rev-parse','HEAD');p.write_text(json.dumps(new,indent=2));git('config','user.name','OpenFeed Relay');git('config','user.email','openfeed@users.noreply.github.com');git('add','--','relay-cursor.json');git('commit','-m','Reserve bounded relay tick '+os.environ['GITHUB_RUN_ID']);push_confirmed(git,expected,git('rev-parse','HEAD'));output('true')
 
         PYRELAY
-    - name: Run verified finite shadow only
+    - name: Run validated bounded production state
       if: steps.deadline.outputs.active == 'true' && steps.claim.outputs.claimed == 'true'
       working-directory: runtime
       env:
         RUN_ID: ${{ github.run_id }}
-        OPENFEED_REQUIRE_SHADOW_DEADLINE: '1'
         OPENFEED_SHADOW_TARGET_IDS: ${{ inputs.source_ids }}
         OPENFEED_ALLOW_SHADOW_TARGETS: ${{ github.actor == github.repository_owner && inputs.signature == '' }}
+        OPENFEED_PAGES_TOKEN: ${{ github.token }}
       run: |
-        if [ "$(date +%s)" -ge 1794053385 ]; then exit 0; fi
         umask 077
         exec > "$RUNNER_TEMP/openfeed-private.log" 2>&1
         python - <<'PY'
         import time,json,datetime
         from pathlib import Path
-        if time.time() >= 1794053385:raise SystemExit(0)
         c=json.loads(Path('private-state/runtime-control.json').read_text())
-        assert c['mode']=='shadow' and c['publish_enabled'] is False
-        assert time.time()<datetime.datetime.fromisoformat(c['shadow_until']).timestamp()<=1794053386
+        assert c['mode']=='production' and c['publish_enabled'] is True
+        assert c['mac_writer_stopped'] is True and len(c.get('final_mac_snapshot_sha256',''))==64
         PY
         python -m pip install -r requirements-runtime.lock
-        python ops/cloud_tick.py --run-id "$RUN_ID"
+        python ops/cloud_tick.py --run-id "$RUN_ID" --public-checkout "$GITHUB_WORKSPACE/public"
     - name: Schedule the next signed cloud tick
       if: always() && steps.claim.outputs.claimed == 'true'
       env:
@@ -206,17 +214,17 @@ jobs:
       run: |
         python3 - <<'PYRELAY'
         import hashlib,hmac,json,time
-        EXPIRY=1794053385
+        EXPIRY=None
         REPO='kobolibra/openfeed-feeds'
         def signature(key,root,generation,not_before):
          payload=json.dumps([REPO,str(root),int(generation),int(not_before),EXPIRY],separators=(',',':'))
          return hmac.new(key.encode(),payload.encode(),hashlib.sha256).hexdigest()
         def authorize(actor,owner,key,inputs,run_id,now):
-         if now>=EXPIRY:return None
+         if EXPIRY is not None and now>=EXPIRY:return None
          if actor==owner and not inputs.get('signature'):return {'root':str(run_id),'generation':0,'not_before':int(now)}
          if actor not in (owner,'github-actions[bot]'):raise ValueError('Actor not allowed')
          root=str(inputs['root']);generation=int(inputs['generation']);not_before=int(inputs['not_before'])
-         if not root.isdigit() or generation<1 or not 0<not_before<EXPIRY:raise ValueError('Invalid relay bounds')
+         if not root.isdigit() or generation<1 or (not_before<=0 or (EXPIRY is not None and not_before>=EXPIRY)):raise ValueError('Invalid relay bounds')
          if not hmac.compare_digest(signature(key,root,generation,not_before),inputs['signature']):raise ValueError('Invalid relay signature')
          if not_before>now+30:raise ValueError('Relay dispatched before its slot')
          return {'root':root,'generation':generation,'not_before':not_before}
@@ -230,14 +238,14 @@ jobs:
 
         def retry_api(call,now=time.time,sleep=time.sleep):
          for attempt in range(5):
-          if now()>=EXPIRY:return False
+          if EXPIRY is not None and now()>=EXPIRY:return False
           try:call();return True
           except urllib.error.HTTPError as error:
            if error.code not in (408,429,500,502,503,504):raise
            if attempt==4:raise
           except (urllib.error.URLError,TimeoutError):
            if attempt==4:raise
-          sleep(min(5*2**attempt,max(0,EXPIRY-now())))
+          sleep(5*2**attempt if EXPIRY is None else min(5*2**attempt,max(0,EXPIRY-now())))
          return False
 
         def push_confirmed(git,expected,new,sleep=time.sleep):
@@ -259,8 +267,8 @@ jobs:
          with urllib.request.urlopen(request,timeout=25) as response:return response.status
 
         next_at=int(os.environ['SLOT_START'])+600
-        while time.time()<min(next_at,EXPIRY):time.sleep(min(20,min(next_at,EXPIRY)-time.time()))
-        if time.time()>=EXPIRY:api('PUT','/actions/workflows/runtime-cloud.yml/disable')
+        while time.time()<next_at:time.sleep(min(20,next_at-time.time()))
+        if EXPIRY is not None and time.time()>=EXPIRY:api('PUT','/actions/workflows/runtime-cloud.yml/disable')
         else:
          root=os.environ['ROOT_RUN'];generation=int(os.environ['GENERATION'])+1
          inputs={'root':root,'generation':str(generation),'not_before':str(next_at),'signature':signature(os.environ['CHAIN_KEY'],root,generation,next_at),'restart':'false'}
