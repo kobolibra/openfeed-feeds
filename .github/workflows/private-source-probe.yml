@@ -8,7 +8,7 @@ on:
         default: ubuntu-latest
       mode:
         type: choice
-        options: [response, regression]
+        options: [response, regression, smoke]
         default: response
       source_ids:
         type: string
@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: kobolibra/openfeed-runtime
-          ref: 875500749672b2bc557cbcf93897e660df8f2c37
+          ref: 14d068b0cf3fa3239c3862bec10bd048d13664be
           path: runtime
           ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
           persist-credentials: false
@@ -67,6 +67,8 @@ jobs:
           probe_status=0
           if [ "$PROBE_MODE" = regression ]; then
             (cd runtime && python -m pip install -r requirements-lock.txt -r requirements-host-egress.txt && python -m playwright install --with-deps chromium && python -m pytest -q && python ops/cloud_smoke.py --state "$GITHUB_WORKSPACE/state") || probe_status=$?
+          elif [ "$PROBE_MODE" = smoke ]; then
+            python runtime/ops/cloud_smoke.py --state state || probe_status=$?
           else
             python -m pip install -r runtime/requirements-runtime.lock
             python runtime/ops/cloud_probe.py --db state/openfeed.sqlite3 --feed-id "$PROBE_SOURCES" --output "state/diagnostics/$GITHUB_RUN_ID" || probe_status=$?
