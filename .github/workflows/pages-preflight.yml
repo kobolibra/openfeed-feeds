@@ -1,0 +1,86 @@
+name: OpenFeed original Pages publishing preflight
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+  actions: write
+concurrency:
+  group: openfeed-pages-preflight
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: github.repository == 'kobolibra/openfeed-feeds' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Enforce approved finite deadline
+        id: deadline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date +%s)" -ge 1794053385 ]; then
+            curl --fail --silent --show-error -X PUT -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/pages-preflight.yml/disable"
+            echo "active=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.deadline.outputs.active == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: public
+      - name: Verify ephemeral-token push permission with existing commit only
+        id: head
+        if: steps.deadline.outputs.active == 'true'
+        working-directory: public
+        run: |
+          test -z "$(git status --porcelain)"
+          git fetch origin main
+          git merge --ff-only origin/main
+          git push origin HEAD:main
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Build current original Pages site and verify original endpoints
+        if: steps.deadline.outputs.active == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_COMMIT: ${{ steps.head.outputs.commit }}
+        run: |
+          python3 - <<'PY'
+          import os,json,time,urllib.request,urllib.error,xml.etree.ElementTree as ET
+          API='https://api.github.com/repos/kobolibra/openfeed-feeds'
+          BASE='https://kobolibra.github.io/openfeed-feeds'
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,*args,**kwargs):return None
+          opener=urllib.request.build_opener(NoRedirect)
+          def api(method,path,data=None):
+              req=urllib.request.Request(API+path,data=json.dumps(data).encode() if data is not None else None,method=method,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json','Content-Type':'application/json'})
+              with opener.open(req,timeout=20) as response:return json.load(response)
+          def public_xml(path):
+              with urllib.request.urlopen(BASE+path,timeout=20) as response:raw=response.read(4_000_001)
+              assert len(raw)<=4_000_000 and b'<!DOCTYPE' not in raw.upper()
+              return ET.fromstring(raw)
+          assert time.time()<1794053385
+          site=api('GET','/pages')
+          assert site['build_type']=='legacy' and site['source']=={'branch':'main','path':'/'}
+          deadline=time.monotonic()+180
+          while api('GET','/pages/builds/latest').get('status') in ('building','queued'):
+              if time.monotonic()>=deadline:raise TimeoutError('Previous Pages build still running')
+              time.sleep(5)
+          assert time.time()<1794053385
+          api('POST','/pages/builds',{})
+          expected=os.environ['EXPECTED_COMMIT']
+          while True:
+              build=api('GET','/pages/builds/latest')
+              if build.get('commit')==expected and build.get('status')=='built':break
+              if build.get('commit')==expected and build.get('status')=='errored':raise RuntimeError('Pages build failed')
+              if time.monotonic()>=deadline:raise TimeoutError('Expected Pages commit not built')
+              time.sleep(5)
+          outlines=public_xml('/subscriptions.opml').findall('./body/outline')
+          assert len(outlines)==171
+          assert all(x.attrib['xmlUrl'].startswith(BASE+'/rss/') for x in outlines)
+          rss=public_xml('/rss/050884e1881fdd777f12cc9cb14e.xml')
+          guids=[x.text for x in rss.findall('./channel/item/guid')]
+          assert len(guids)==len(set(guids))
+          print(json.dumps({'commit':expected,'ephemeral_token_push':'verified existing commit only','pages_build':'built','original_opml_sources':len(outlines),'original_rss_http':'valid','new_rss_content_pushed':False,'production_cutover':False}))
+          PY
