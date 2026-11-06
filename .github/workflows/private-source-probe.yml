@@ -1,6 +1,10 @@
 name: OpenFeed private response probe
 on:
   workflow_dispatch:
+    inputs:
+      source_ids:
+        type: string
+        default: '4eb10889d95da4ae84cfe4ab1d46'
 permissions:
   contents: read
   actions: write
@@ -28,7 +32,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: kobolibra/openfeed-runtime
-          ref: 92a33a9f5404d40a47ee3fb21c609b50bb462de1
+          ref: eb888261c3ebcc980558b53de169e0422e62208b
           path: runtime
           ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
           persist-credentials: false
@@ -47,12 +51,13 @@ jobs:
         if: steps.deadline.outputs.active == 'true'
         env:
           OPENFEED_MAX_FETCH_BYTES: '8000000'
+          PROBE_SOURCES: ${{ inputs.source_ids }}
         run: |
           umask 077
           exec > "$RUNNER_TEMP/private-probe.log" 2>&1
           python -m pip install -r runtime/requirements-runtime.lock
           probe_status=0
-          python runtime/ops/cloud_probe.py --db state/openfeed.sqlite3 --feed-id 4eb10889d95da4ae84cfe4ab1d46 --output "state/diagnostics/$GITHUB_RUN_ID" || probe_status=$?
+          python runtime/ops/cloud_probe.py --db state/openfeed.sqlite3 --feed-id "$PROBE_SOURCES" --output "state/diagnostics/$GITHUB_RUN_ID" || probe_status=$?
           mkdir -p "state/diagnostics/$GITHUB_RUN_ID"
           cp "$RUNNER_TEMP/private-probe.log" "state/diagnostics/$GITHUB_RUN_ID/probe.log"
           cd state
