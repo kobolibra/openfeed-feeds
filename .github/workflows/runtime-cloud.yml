@@ -87,6 +87,8 @@ jobs:
         repository: kobolibra/openfeed-runtime
         ref: shadow-state
         path: state
+        sparse-checkout: relay-cursor.json
+        sparse-checkout-cone-mode: false
         ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
     - name: Reserve one scheduling generation
       id: claim
