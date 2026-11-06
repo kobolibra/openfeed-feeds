@@ -43,6 +43,30 @@ jobs:
           if cursor and now-cursor['at']<1200 and not restart:return None
          elif not cursor or cursor['root']!=root or cursor['generation']!=generation-1:return None
          return {'root':root,'generation':generation,'run_id':str(run_id),'at':int(now)}
+
+        import subprocess,urllib.error
+
+        def retry_api(call,now=time.time,sleep=time.sleep):
+         for attempt in range(5):
+          if now()>=EXPIRY:return False
+          try:call();return True
+          except urllib.error.HTTPError as error:
+           if error.code not in (408,429,500,502,503,504):raise
+           if attempt==4:raise
+          except (urllib.error.URLError,TimeoutError):
+           if attempt==4:raise
+          sleep(min(5*2**attempt,max(0,EXPIRY-now())))
+         return False
+
+        def push_confirmed(git,expected,new,sleep=time.sleep):
+         for attempt in range(3):
+          try:git('push','origin','HEAD:shadow-state');return
+          except subprocess.CalledProcessError:
+           remote=git('ls-remote','origin','refs/heads/shadow-state').split()[0]
+           if remote==new:return
+           if remote!=expected:raise ValueError('Private state advanced; refusing overwrite')
+           if attempt==2:raise
+           sleep(5*(attempt+1))
         import os,urllib.request,urllib.error,datetime,subprocess
         from pathlib import Path
         def output(**rows):
@@ -112,6 +136,30 @@ jobs:
          elif not cursor or cursor['root']!=root or cursor['generation']!=generation-1:return None
          return {'root':root,'generation':generation,'run_id':str(run_id),'at':int(now)}
 
+        import subprocess,urllib.error
+
+        def retry_api(call,now=time.time,sleep=time.sleep):
+         for attempt in range(5):
+          if now()>=EXPIRY:return False
+          try:call();return True
+          except urllib.error.HTTPError as error:
+           if error.code not in (408,429,500,502,503,504):raise
+           if attempt==4:raise
+          except (urllib.error.URLError,TimeoutError):
+           if attempt==4:raise
+          sleep(min(5*2**attempt,max(0,EXPIRY-now())))
+         return False
+
+        def push_confirmed(git,expected,new,sleep=time.sleep):
+         for attempt in range(3):
+          try:git('push','origin','HEAD:shadow-state');return
+          except subprocess.CalledProcessError:
+           remote=git('ls-remote','origin','refs/heads/shadow-state').split()[0]
+           if remote==new:return
+           if remote!=expected:raise ValueError('Private state advanced; refusing overwrite')
+           if attempt==2:raise
+           sleep(5*(attempt+1))
+
         import os,subprocess
         from pathlib import Path
         def git(*args):return subprocess.run(['git',*args],check=True,capture_output=True,text=True,timeout=90).stdout.strip()
@@ -122,7 +170,7 @@ jobs:
         new=claim(old,os.environ['ROOT_RUN'],int(os.environ['GENERATION']),os.environ['GITHUB_RUN_ID'],time.time(),os.environ.get('RESTART')=='true' and os.environ['GITHUB_ACTOR']==os.environ['GITHUB_REPOSITORY_OWNER'])
         if new is None:output('false')
         else:
-         p.write_text(json.dumps(new,indent=2));git('config','user.name','OpenFeed Relay');git('config','user.email','openfeed@users.noreply.github.com');git('add','--','relay-cursor.json');git('commit','-m','Reserve bounded relay tick '+os.environ['GITHUB_RUN_ID']);git('push','origin','HEAD:shadow-state');output('true')
+         expected=git('rev-parse','HEAD');p.write_text(json.dumps(new,indent=2));git('config','user.name','OpenFeed Relay');git('config','user.email','openfeed@users.noreply.github.com');git('add','--','relay-cursor.json');git('commit','-m','Reserve bounded relay tick '+os.environ['GITHUB_RUN_ID']);push_confirmed(git,expected,git('rev-parse','HEAD'));output('true')
 
         PYRELAY
     - name: Run verified finite shadow only
@@ -175,6 +223,30 @@ jobs:
           if cursor and now-cursor['at']<1200 and not restart:return None
          elif not cursor or cursor['root']!=root or cursor['generation']!=generation-1:return None
          return {'root':root,'generation':generation,'run_id':str(run_id),'at':int(now)}
+
+        import subprocess,urllib.error
+
+        def retry_api(call,now=time.time,sleep=time.sleep):
+         for attempt in range(5):
+          if now()>=EXPIRY:return False
+          try:call();return True
+          except urllib.error.HTTPError as error:
+           if error.code not in (408,429,500,502,503,504):raise
+           if attempt==4:raise
+          except (urllib.error.URLError,TimeoutError):
+           if attempt==4:raise
+          sleep(min(5*2**attempt,max(0,EXPIRY-now())))
+         return False
+
+        def push_confirmed(git,expected,new,sleep=time.sleep):
+         for attempt in range(3):
+          try:git('push','origin','HEAD:shadow-state');return
+          except subprocess.CalledProcessError:
+           remote=git('ls-remote','origin','refs/heads/shadow-state').split()[0]
+           if remote==new:return
+           if remote!=expected:raise ValueError('Private state advanced; refusing overwrite')
+           if attempt==2:raise
+           sleep(5*(attempt+1))
         import os,urllib.request,urllib.error,datetime,subprocess
         from pathlib import Path
         def output(**rows):
@@ -190,12 +262,7 @@ jobs:
         else:
          root=os.environ['ROOT_RUN'];generation=int(os.environ['GENERATION'])+1
          inputs={'root':root,'generation':str(generation),'not_before':str(next_at),'signature':signature(os.environ['CHAIN_KEY'],root,generation,next_at),'restart':'false'}
-         for attempt in range(2):
-          try:
-           api('POST','/actions/workflows/runtime-cloud.yml/dispatches',{'ref':'main','inputs':inputs});break
-          except (urllib.error.URLError,TimeoutError):
-           if attempt:raise
-           time.sleep(3)
+         retry_api(lambda:api('POST','/actions/workflows/runtime-cloud.yml/dispatches',{'ref':'main','inputs':inputs}))
 
         PYRELAY
 'on':
