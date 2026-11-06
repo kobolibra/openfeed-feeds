@@ -51,7 +51,8 @@ jobs:
           umask 077
           exec > "$RUNNER_TEMP/private-probe.log" 2>&1
           python -m pip install -r runtime/requirements-runtime.lock
-          python runtime/ops/cloud_probe.py --db state/openfeed.sqlite3 --feed-id 4eb10889d95da4ae84cfe4ab1d46 --output "state/diagnostics/$GITHUB_RUN_ID" || true
+          probe_status=0
+          python runtime/ops/cloud_probe.py --db state/openfeed.sqlite3 --feed-id 4eb10889d95da4ae84cfe4ab1d46 --output "state/diagnostics/$GITHUB_RUN_ID" || probe_status=$?
           mkdir -p "state/diagnostics/$GITHUB_RUN_ID"
           cp "$RUNNER_TEMP/private-probe.log" "state/diagnostics/$GITHUB_RUN_ID/probe.log"
           cd state
@@ -60,3 +61,4 @@ jobs:
           git add -- "diagnostics/$GITHUB_RUN_ID"
           git commit -m "Private read-only response evidence $GITHUB_RUN_ID"
           git push origin "HEAD:refs/heads/probe-$GITHUB_RUN_ID"
+          exit "$probe_status"
