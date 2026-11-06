@@ -1,0 +1,62 @@
+name: OpenFeed private response probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: openfeed-readonly-response-probe
+  cancel-in-progress: false
+jobs:
+  probe:
+    if: github.ref == 'refs/heads/main' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Enforce existing validation deadline
+        id: deadline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$(date +%s)" -ge 1794053385 ]; then
+            curl --fail --silent --show-error -X PUT -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/private-source-probe.yml/disable"
+            echo "active=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "active=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.deadline.outputs.active == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: kobolibra/openfeed-runtime
+          ref: 92a33a9f5404d40a47ee3fb21c609b50bb462de1
+          path: runtime
+          ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
+          persist-credentials: false
+      - if: steps.deadline.outputs.active == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: kobolibra/openfeed-runtime
+          ref: shadow-state
+          path: state
+          ssh-key: ${{ secrets.OPENFEED_RUNTIME_KEY }}
+      - if: steps.deadline.outputs.active == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Capture bounded response only into a separate private diagnostic ref
+        if: steps.deadline.outputs.active == 'true'
+        env:
+          OPENFEED_MAX_FETCH_BYTES: '8000000'
+        run: |
+          umask 077
+          exec > "$RUNNER_TEMP/private-probe.log" 2>&1
+          python -m pip install -r runtime/requirements-runtime.lock
+          python runtime/ops/cloud_probe.py --db state/openfeed.sqlite3 --feed-id 4eb10889d95da4ae84cfe4ab1d46 --output "state/diagnostics/$GITHUB_RUN_ID" || true
+          mkdir -p "state/diagnostics/$GITHUB_RUN_ID"
+          cp "$RUNNER_TEMP/private-probe.log" "state/diagnostics/$GITHUB_RUN_ID/probe.log"
+          cd state
+          git config user.name "OpenFeed Readonly Probe"
+          git config user.email "openfeed@users.noreply.github.com"
+          git add -- "diagnostics/$GITHUB_RUN_ID"
+          git commit -m "Private read-only response evidence $GITHUB_RUN_ID"
+          git push origin "HEAD:refs/heads/probe-$GITHUB_RUN_ID"
